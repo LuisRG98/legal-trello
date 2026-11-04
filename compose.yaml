@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: case-management-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: case_management_db
+      POSTGRES_USER: case_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en el archivo .env}
+
+    ports:
+      - "127.0.0.1:5433:5432"
+
+    volumes:
+      - case_management_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U case_app -d case_management_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  case_management_data:
