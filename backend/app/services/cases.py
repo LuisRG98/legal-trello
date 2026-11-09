@@ -85,7 +85,10 @@ def get_case_or_none(
 
     statement = (
         select(Case)
-        .options(joinedload(Case.status))
+        .options(
+            joinedload(Case.status),
+            joinedload(Case.assigned_to),
+        )
         .where(Case.id == case_id)
     )
 
@@ -114,7 +117,10 @@ def get_visible_case_or_none(
 
     statement = (
         select(Case)
-        .options(joinedload(Case.status))
+        .options(
+            joinedload(Case.status),
+            joinedload(Case.assigned_to),
+        )
         .where(Case.id == case_id)
     )
 
@@ -243,7 +249,10 @@ def assign_case(
     """
     Assign or unassign a case.
 
-    Only active SALES users can be assigned.
+    Any active user with a valid role can be assigned.
+
+    Only MANAGER and ADMIN can perform assignments.
+    The endpoint enforces this permission.
     """
 
     if assigned_to_id is None:
@@ -252,14 +261,20 @@ def assign_case(
     else:
         new_assignee = db.get(User, assigned_to_id)
 
-        if (
-            new_assignee is None
-            or not new_assignee.is_active
-            or get_role_value(new_assignee) != UserRole.SALES.value
-        ):
-            raise ValueError(
-                "The assignee must be an active SALES user."
-            )
+        allowed_roles = {
+            UserRole.SALES.value,
+            UserRole.MANAGER.value,
+            UserRole.ADMIN.value,
+        }
+
+        if new_assignee is None:
+            raise ValueError("The selected assignee does not exist.")
+
+        if not new_assignee.is_active:
+            raise ValueError("The selected assignee is inactive.")
+
+        if get_role_value(new_assignee) not in allowed_roles:
+            raise ValueError("The selected assignee has an invalid role.")
 
     old_assignee_id = (
         str(case.assigned_to_id)
@@ -281,8 +296,12 @@ def assign_case(
         case_id=case.id,
         actor_id=actor.id,
         action="ASSIGNMENT_CHANGED",
-        old_value={"assigned_to_id": old_assignee_id},
-        new_value={"assigned_to_id": new_assignee_id},
+        old_value={
+            "assigned_to_id": old_assignee_id,
+        },
+        new_value={
+            "assigned_to_id": new_assignee_id,
+        },
     )
 
     case.assigned_to_id = (

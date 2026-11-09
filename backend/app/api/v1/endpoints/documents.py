@@ -15,6 +15,8 @@ from fastapi import (
 )
 
 from fastapi.responses import FileResponse
+
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -23,9 +25,11 @@ from app.core.config import get_settings
 from app.core.roles import UserRole
 from app.db.database import get_db
 from app.models.user import User
+from app.models.case_document import CaseDocument
 from app.schemas.document import (
     PDFUploadItemResult,
     PDFUploadResponse,
+    DocumentRead
 )
 from app.services.cases import get_visible_case_or_none
 from app.services.documents import (
@@ -214,6 +218,55 @@ async def upload_pdfs(
         failed=failed,
     )
 
+
+# =========================================================
+# LIST DOCUMENTS ASSOCIATED WITH A CASE
+# =========================================================
+
+@router.get(
+    "/case/{case_id}",
+    response_model=list[DocumentRead],
+)
+def list_case_documents(
+    case_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[DocumentRead]:
+    """
+    List all documents associated with a case.
+
+    SALES:
+        Can only list documents belonging to assigned cases.
+
+    MANAGER / ADMIN:
+        Can list documents belonging to any case.
+    """
+
+    # 1. Verify that the user can access the case.
+
+    case = get_visible_case_or_none(
+        db=db,
+        case_id=case_id,
+        current_user=current_user,
+    )
+
+    if case is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found.",
+        )
+
+    # 2. Retrieve associated documents.
+
+    statement = (
+        select(CaseDocument)
+        .where(CaseDocument.case_id == case_id)
+        .order_by(CaseDocument.uploaded_at.desc())
+    )
+
+    documents = db.scalars(statement).all()
+
+    return list(documents)
 
 # =========================================================
 # VIEW PRIVATE PDF DOCUMENT

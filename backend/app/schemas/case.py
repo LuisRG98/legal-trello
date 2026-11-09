@@ -22,6 +22,15 @@ class CaseAssignmentUpdate(BaseModel):
     assigned_to_id: UUID | None
 
 
+class CaseAssigneeRead(BaseModel):
+    id: UUID
+    full_name: str
+    nickname: str
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CaseRead(BaseModel):
     id: UUID
     case_number: str
@@ -31,5 +40,34 @@ class CaseRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None
+    assigned_to: CaseAssigneeRead | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    
+class CaseListItem(BaseModel):
+    id: UUID
+    case_number: str
+
+    status_id: UUID
+    status_code: str
+
+    assigned_to_id: UUID | None
+    created_by_id: UUID
+
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None
+
+    assigned_to: CaseAssigneeRead | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CaseListResponse(BaseModel):
+    items: list[CaseListItem]
+
+    total: int
+    page: int
+    page_size: int
+    pages: int
