@@ -1,4 +1,3 @@
-
 import {
   BrowserRouter,
   Navigate,
@@ -20,17 +19,31 @@ import CasesPage from "../features/cases/pages/CasesPage";
 
 import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
+import ChangeTemporaryPasswordPage from "../features/auth/pages/ChangeTemporaryPasswordPage";
 
 function RequireAuth() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading,
+    mustChangePassword,
+  } = useAuth();
 
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-slate-500">
-          Verificando sesión...
+          Verifying session...
         </p>
       </div>
+    );
+  }
+
+  if (mustChangePassword) {
+    return (
+      <Navigate
+        to="/change-temporary-password"
+        replace
+      />
     );
   }
 
@@ -41,11 +54,35 @@ function RequireAuth() {
   return <Outlet />;
 }
 
+function RequirePasswordChange() {
+  const {
+    mustChangePassword,
+    isLoading,
+  } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-slate-500">
+          Verifying session...
+        </p>
+      </div>
+    );
+  }
+
+  if (!mustChangePassword) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <ChangeTemporaryPasswordPage />;
+}
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+
         <Route
           path="/forgot-password"
           element={<ForgotPasswordPage />}
@@ -55,16 +92,17 @@ export default function AppRouter() {
           path="/reset-password"
           element={<ResetPasswordPage />}
         />
+
+        <Route
+          path="/change-temporary-password"
+          element={<RequirePasswordChange />}
+        />
+
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
 
-            <Route
-              path="cases"
-              element={
-                <CasesPage />
-              }
-            />
+            <Route path="cases" element={<CasesPage />} />
 
             <Route element={<RequireRole allowedRoles={["ADMIN"]} />}>
               <Route

@@ -37,3 +37,11 @@ export interface ResetPasswordRequest {
 export interface ResetPasswordResponse {
   message: string;
 }
+
+export interface TemporaryPasswordChangeRequest {
+  new_password: string;
+}
+
+export interface PasswordChangeResponse {
+  message: string;
+}

@@ -1,4 +1,3 @@
-
 import api from "../../../lib/api";
 
 import type {
@@ -9,6 +8,8 @@ import type {
   ForgotPasswordResponse,
   ResetPasswordRequest,
   ResetPasswordResponse,
+  TemporaryPasswordChangeRequest,
+  PasswordChangeResponse,
 } from "../types/auth.types";
 
 const authService = {
@@ -43,6 +44,17 @@ const authService = {
   ): Promise<ResetPasswordResponse> {
     const response = await api.post<ResetPasswordResponse>(
       "/auth/password/reset",
+      payload
+    );
+
+    return response.data;
+  },
+
+  async changeTemporaryPassword(
+    payload: TemporaryPasswordChangeRequest
+  ): Promise<PasswordChangeResponse> {
+    const response = await api.post<PasswordChangeResponse>(
+      "/auth/change-temporary-password",
       payload
     );
 
