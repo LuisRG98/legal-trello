@@ -12,17 +12,12 @@ import type {
 
 export const caseService = {
   async getCases(
-    filters: CaseFilters,
+    filters: CaseFilters = {},
   ): Promise<CaseListResponse> {
     const response = await api.get<CaseListResponse>(
       "/cases",
       {
-        params: {
-          page: filters.page,
-          page_size: filters.page_size,
-          status_code: filters.status_code || undefined,
-          case_number: filters.case_number?.trim() || undefined,
-        },
+        params: filters,
       },
     );
 

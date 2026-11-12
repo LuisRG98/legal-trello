@@ -137,6 +137,7 @@ def get_visible_case_or_none(
 # CASE CREATION
 # =========================================================
 
+
 def create_case(
     db: Session,
     current_user: User,
@@ -144,9 +145,7 @@ def create_case(
     """
     Create a case with an automatically generated case number.
 
-    Example:
-        CASE-000001
-        CASE-000002
+    The case and its audit activity are committed together.
     """
 
     pending_status = db.scalar(
@@ -170,6 +169,22 @@ def create_case(
 
     try:
         db.add(case)
+
+        # Generate the case UUID before recording its activity.
+        db.flush()
+
+        record_case_activity(
+            db,
+            case_id=case.id,
+            actor_id=current_user.id,
+            action="CASE_CREATED",
+            old_value=None,
+            new_value={
+                "case_number": case.case_number,
+                "status": "PENDING",
+            },
+        )
+
         db.commit()
         db.refresh(case)
 
@@ -178,6 +193,7 @@ def create_case(
     except Exception:
         db.rollback()
         raise
+
 
 
 # =========================================================

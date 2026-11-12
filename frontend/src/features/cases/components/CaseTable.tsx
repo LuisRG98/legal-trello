@@ -4,7 +4,7 @@ import type {
   CaseStatus,
 } from "../types/case.types";
 
-import CaseAssignmentSelect from "./CaseAssignmentSelect";
+import { AssigneePicker } from "./AssigneePicker";
 
 interface CaseTableProps {
   cases: CaseListItem[];
@@ -104,7 +104,7 @@ export default function CaseTable({
 
                 <td className="px-4 py-3">
                   {canManageAssignments ? (
-                    <CaseAssignmentSelect caseItem={item} />
+                    <AssigneePicker caseItem={item} />
                   ) : item.assigned_to ? (
                     <div>
                       <p className="text-sm font-medium text-gray-800">
@@ -121,7 +121,7 @@ export default function CaseTable({
                       Unassigned
                     </span>
                   )}
-</td>
+                </td>
 
                 <td className="px-6 py-4 text-slate-600">
                   {formatDate(item.created_at)}

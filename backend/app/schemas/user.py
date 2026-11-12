@@ -81,3 +81,8 @@ class AssigneeRead(BaseModel):
     role: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+
+class PasswordResetResponse(BaseModel):
+    message: str

@@ -1,8 +1,8 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select, or_  
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,15 @@ from app.schemas.user import (
     UserStatusUpdate,
     SalesUserRead,
     AssigneeRead,
+)
+
+from app.schemas.user import PasswordResetResponse
+
+from app.services.email import EmailDeliveryError
+from app.services.password_reset import (
+    generate_temporary_password,
+    prepare_temporary_password,
+    send_temporary_password_email,
 )
 
 
@@ -99,6 +108,16 @@ def list_sales_users(
     response_model=list[AssigneeRead],
 )
 def get_assignees(
+    search: str = Query(
+        ...,
+        min_length=2,
+        max_length=100,
+    ),
+    limit: int = Query(
+        default=10,
+        ge=1,
+        le=20,
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_roles(
@@ -107,19 +126,28 @@ def get_assignees(
         )
     ),
 ):
-    """
-    Return all active users who can be assigned to cases.
+    search_term = search.strip()
 
-    SALES, MANAGER and ADMIN users are eligible.
-    """
+    if len(search_term) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Search must contain at least 2 characters.",
+        )
+
+    pattern = f"%{search_term}%"
 
     statement = (
         select(User)
-        .where(User.is_active.is_(True))
-        .order_by(
-            User.role.asc(),
-            User.full_name.asc(),
+        .where(
+            User.is_active.is_(True),
+            or_(
+                User.full_name.ilike(pattern),
+                User.nickname.ilike(pattern),
+                User.email.ilike(pattern),
+            ),
         )
+        .order_by(User.full_name.asc())
+        .limit(limit)
     )
 
     return db.scalars(statement).all()
@@ -274,3 +302,77 @@ def update_user_status(
         raise
 
     return user
+
+
+
+@router.post(
+    "/{user_id}/password-reset",
+    response_model=PasswordResetResponse,
+)
+def admin_reset_user_password(
+    user_id: UUID,
+    current_user: User = Depends(
+        require_roles(UserRole.ADMIN.value)
+    ),
+    db: Session = Depends(get_db),
+) -> PasswordResetResponse:
+    """
+    Allow administrators to reset a user's password.
+
+    A temporary password is generated and sent by email.
+    The user must replace it before accessing the platform.
+    """
+
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot reset the password of an inactive user",
+        )
+
+    temporary_password = generate_temporary_password()
+
+    prepare_temporary_password(
+        user=user,
+        temporary_password=temporary_password,
+    )
+
+    try:
+        # Flush validates pending database changes without committing.
+        db.flush()
+
+        # Send before committing so a delivery failure does not
+        # leave the account with an unknown temporary password.
+        send_temporary_password_email(
+            email=user.email,
+            full_name=user.full_name,
+            temporary_password=temporary_password,
+        )
+
+        db.commit()
+
+    except EmailDeliveryError:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to deliver the temporary password email",
+        ) from None
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return PasswordResetResponse(
+        message=(
+            "A temporary password has been generated "
+            "and sent to the user's email address."
+        )
+    )

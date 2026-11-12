@@ -20,6 +20,7 @@ from app.models.case import Case
 from app.models.case_status import CaseStatus
 from app.models.user import User
 from app.schemas.case import (
+    CaseAssigneeRead,
     CaseAssignmentUpdate,
     CaseListItem,
     CaseListResponse,
@@ -34,6 +35,8 @@ from app.services.cases import (
     update_case_status,
 )
 
+from app.schemas.activity import CaseActivityListResponse
+from app.services.activity import get_case_activities
 
 router = APIRouter(
     prefix="/cases",
@@ -45,6 +48,7 @@ router = APIRouter(
 # LIST CASES WITH FILTERS AND PAGINATION
 # =========================================================
 
+
 @router.get(
     "",
     response_model=CaseListResponse,
@@ -52,29 +56,27 @@ router = APIRouter(
 def list_cases(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-
     status_code: str | None = Query(
         default=None,
         min_length=1,
         max_length=50,
     ),
-
     case_number: str | None = Query(
         default=None,
         min_length=1,
         max_length=20,
     ),
-
     assigned_to_id: UUID | None = Query(default=None),
-
+    assigned_to_role: str | None = Query(
+        default=None,
+        pattern="^(SALES|MANAGER|ADMIN)$",
+    ),
+    unassigned_only: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CaseListResponse:
 
-    # -----------------------------------------------------
-    # 1. Validate user role.
-    # -----------------------------------------------------
-
+    # 1. Normalize and validate the authenticated user's role.
     role = get_role_value(current_user)
 
     allowed_roles = {
@@ -89,44 +91,58 @@ def list_cases(
             detail="You are not allowed to view cases.",
         )
 
-    # -----------------------------------------------------
-    # 2. Build base query.
-    # -----------------------------------------------------
+    is_sales = role == UserRole.SALES.value
+    is_admin = role == UserRole.ADMIN.value
 
-    statement = select(Case).options(
-        joinedload(Case.status),
-        joinedload(Case.assigned_to),
-    )
+    # 2. Only ADMIN can use administrative assignment filters.
+    if not is_admin and (
+        assigned_to_role is not None or unassigned_only
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to use these filters.",
+        )
 
-    count_statement = select(func.count(Case.id))
+    if assigned_to_id is not None and not is_admin:
+        if is_sales and assigned_to_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot view cases assigned to another user.",
+            )
 
-    # -----------------------------------------------------
-    # 3. Apply mandatory visibility restrictions.
-    # -----------------------------------------------------
+        if not is_sales:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only ADMIN can filter cases by assigned user.",
+            )
 
-    if role == UserRole.SALES.value:
-        statement = statement.where(
+    # 3. Reject contradictory filters.
+    if assigned_to_role and unassigned_only:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Role filter cannot be combined with unassigned filter.",
+        )
+
+    if assigned_to_id and unassigned_only:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="User filter cannot be combined with unassigned filter.",
+        )
+
+    # 4. Build one shared set of conditions.
+    conditions = []
+
+    # Mandatory visibility restriction for SALES.
+    if is_sales:
+        conditions.append(
             Case.assigned_to_id == current_user.id
         )
 
-        count_statement = count_statement.where(
-            Case.assigned_to_id == current_user.id
-        )
-
-    # -----------------------------------------------------
-    # 4. Apply optional filters.
-    # -----------------------------------------------------
-
+    # General filters.
     if status_code:
         normalized_status = status_code.strip().upper()
 
-        statement = statement.where(
-            Case.status.has(
-                CaseStatus.code == normalized_status
-            )
-        )
-
-        count_statement = count_statement.where(
+        conditions.append(
             Case.status.has(
                 CaseStatus.code == normalized_status
             )
@@ -135,43 +151,48 @@ def list_cases(
     if case_number:
         search_value = f"%{case_number.strip()}%"
 
-        statement = statement.where(
+        conditions.append(
             Case.case_number.ilike(search_value)
         )
 
-        count_statement = count_statement.where(
-            Case.case_number.ilike(search_value)
-        )
-
-    if assigned_to_id is not None:
-
-        if (
-            role == UserRole.SALES.value
-            and assigned_to_id != current_user.id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You cannot filter cases assigned to another user.",
+    # Administrative assignment filters.
+    if is_admin:
+        if assigned_to_id is not None:
+            conditions.append(
+                Case.assigned_to_id == assigned_to_id
             )
 
-        statement = statement.where(
-            Case.assigned_to_id == assigned_to_id
+        if assigned_to_role is not None:
+            conditions.append(
+                Case.assigned_to.has(
+                    User.role == assigned_to_role
+                )
+            )
+
+        if unassigned_only:
+            conditions.append(
+                Case.assigned_to_id.is_(None)
+            )
+
+    # 5. Apply exactly the same conditions to both queries.
+    statement = (
+        select(Case)
+        .options(
+            joinedload(Case.status),
+            joinedload(Case.assigned_to),
         )
+        .where(*conditions)
+    )
 
-        count_statement = count_statement.where(
-            Case.assigned_to_id == assigned_to_id
-        )
+    count_statement = (
+        select(func.count(Case.id))
+        .where(*conditions)
+    )
 
-    # -----------------------------------------------------
-    # 5. Count matching cases.
-    # -----------------------------------------------------
-
+    # 6. Count matching records before pagination.
     total = db.scalar(count_statement) or 0
 
-    # -----------------------------------------------------
-    # 6. Apply pagination and stable ordering.
-    # -----------------------------------------------------
-
+    # 7. Apply stable ordering and pagination.
     offset = (page - 1) * page_size
 
     statement = (
@@ -186,16 +207,10 @@ def list_cases(
 
     cases = db.scalars(statement).all()
 
-    # -----------------------------------------------------
-    # 7. Calculate total pages.
-    # -----------------------------------------------------
-
+    # 8. Calculate pages.
     total_pages = ceil(total / page_size) if total else 0
 
-    # -----------------------------------------------------
-    # 8. Build response.
-    # -----------------------------------------------------
-
+    # 9. Build response, including assigned user information.
     items = [
         CaseListItem(
             id=case.id,
@@ -203,6 +218,11 @@ def list_cases(
             status_id=case.status_id,
             status_code=case.status.code,
             assigned_to_id=case.assigned_to_id,
+            assigned_to=(
+                CaseAssigneeRead.model_validate(case.assigned_to)
+                if case.assigned_to is not None
+                else None
+            ),
             created_by_id=case.created_by_id,
             created_at=case.created_at,
             updated_at=case.updated_at,
@@ -405,3 +425,55 @@ def change_case_assignment(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+
+# =========================================================
+# GET CASE ACTIVITY HISTORY
+# =========================================================
+
+@router.get(
+    "/{case_id}/activities",
+    response_model=CaseActivityListResponse,
+)
+def list_case_activities(
+    case_id: UUID,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CaseActivityListResponse:
+    """
+    Retrieve a paginated activity history for a case.
+
+    SALES:
+        Can only view activities for cases assigned to them.
+
+    MANAGER / ADMIN:
+        Can view activities for all cases.
+    """
+
+    case = get_visible_case_or_none(
+        db=db,
+        case_id=case_id,
+        current_user=current_user,
+    )
+
+    if case is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Case not found.",
+        )
+
+    activities, total = get_case_activities(
+        db=db,
+        case_id=case_id,
+        skip=skip,
+        limit=limit,
+    )
+
+    return CaseActivityListResponse(
+        items=activities,
+        total=total,
+        skip=skip,
+        limit=limit,
+    )

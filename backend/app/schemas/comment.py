@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from uuid import UUID
 
@@ -44,10 +43,20 @@ class CommentUpdate(BaseModel):
         return value
 
 
+class CommentAuthorRead(BaseModel):
+    id: UUID
+    full_name: str
+    nickname: str
+    role: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CommentRead(BaseModel):
     id: UUID
     case_id: UUID
     user_id: UUID
+    author: CommentAuthorRead = Field(validation_alias="user")
     content: str
     is_deleted: bool
     created_at: datetime
@@ -60,6 +69,7 @@ class CommentHistoryRead(BaseModel):
     id: UUID
     comment_id: UUID
     user_id: UUID
+    author: CommentAuthorRead = Field(validation_alias="user")
     version: int
     action: str
     content: str

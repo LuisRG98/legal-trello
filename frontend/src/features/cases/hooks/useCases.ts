@@ -12,6 +12,8 @@ import type {
   CaseStatusUpdate,
 } from "../types/case.types";
 
+import { activityKeys } from "./useCaseActivities";
+
 export const caseKeys = {
   all: ["cases"] as const,
 
@@ -24,11 +26,14 @@ export const caseKeys = {
     ["documents", caseId] as const,
 };
 
-export function useCases(filters: CaseFilters) {
+export function useCases(filters: CaseFilters = {}) {
   return useQuery({
     queryKey: caseKeys.list(filters),
+
     queryFn: () => caseService.getCases(filters),
+
     staleTime: 30_000,
+    retry: 1,
   });
 }
 
@@ -52,10 +57,16 @@ export function useUpdateCaseStatus() {
       payload: CaseStatusUpdate;
     }) => caseService.updateStatus(caseId, payload),
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: caseKeys.all,
-      });
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: caseKeys.all,
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: activityKeys.case(variables.caseId),
+        }),
+      ]);
     },
   });
 }
@@ -87,10 +98,16 @@ export function useUpdateCaseAssignment() {
       assignedToId: string | null;
     }) => caseService.updateAssignment(caseId, assignedToId),
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: caseKeys.all,
-      });
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: caseKeys.all,
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: activityKeys.case(variables.caseId),
+        }),
+      ]);
     },
   });
 }

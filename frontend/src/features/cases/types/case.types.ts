@@ -59,10 +59,15 @@ export interface PDFUploadResponse {
 }
 
 export interface CaseFilters {
-  page: number;
-  page_size: number;
-  status_code?: CaseStatus;
+  page?: number;
+  page_size?: number;
+
   case_number?: string;
+  status_code?: CaseStatus;
+
+  assigned_to_id?: string;
+  assigned_to_role?: UserRole;
+  unassigned_only?: boolean;
 }
 
 
