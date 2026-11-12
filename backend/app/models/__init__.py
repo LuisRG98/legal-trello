@@ -5,6 +5,7 @@ from app.models.case_document import CaseDocument
 from app.models.case_comment import CaseComment
 from app.models.case_activity import CaseActivity
 from app.models.case_comment_history import CaseCommentHistory
+from app.models.password_reset_token import PasswordResetToken
 
 __all__ = [
     "User",
@@ -14,4 +15,5 @@ __all__ = [
     "CaseComment",
     "CaseActivity",
     "CaseCommentHistory",
+    "PasswordResetToken",
 ]

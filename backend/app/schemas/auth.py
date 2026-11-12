@@ -45,3 +45,28 @@ class TemporaryPasswordChangeRequest(BaseModel):
 
 class PasswordChangeResponse(BaseModel):
     message: str
+
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(
+        min_length=32,
+        max_length=128,
+    )
+
+    new_password: str = Field(
+        min_length=12,
+        max_length=128,
+    )
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+
+
+class ResetPasswordResponse(BaseModel):
+    message: str
