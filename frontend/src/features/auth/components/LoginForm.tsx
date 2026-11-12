@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { BriefcaseBusiness, LockKeyhole, Mail } from "lucide-react";
 
@@ -132,6 +132,15 @@ export default function LoginForm() {
               {errors.password.message}
             </p>
           )}
+        </div>
+        
+        <div className="flex justify-end">
+          <Link
+            to="/forgot-password"
+            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            Forgot password?
+          </Link>
         </div>
 
         {serverError && (

@@ -18,6 +18,9 @@ import ModulePlaceholder from "../components/shared/ModulePlaceholder";
 
 import CasesPage from "../features/cases/pages/CasesPage";
 
+import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
+import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
+
 function RequireAuth() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -43,7 +46,15 @@ export default function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/forgot-password"
+          element={<ForgotPasswordPage />}
+        />
 
+        <Route
+          path="/reset-password"
+          element={<ResetPasswordPage />}
+        />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />

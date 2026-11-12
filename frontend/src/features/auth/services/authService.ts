@@ -5,6 +5,10 @@ import type {
   AuthUser,
   LoginRequest,
   LoginResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from "../types/auth.types";
 
 const authService = {
@@ -19,6 +23,28 @@ const authService = {
 
   async getMe(): Promise<AuthUser> {
     const response = await api.get<AuthUser>("/auth/me");
+
+    return response.data;
+  },
+
+  async forgotPassword(
+    payload: ForgotPasswordRequest
+  ): Promise<ForgotPasswordResponse> {
+    const response = await api.post<ForgotPasswordResponse>(
+      "/auth/password/forgot",
+      payload
+    );
+
+    return response.data;
+  },
+
+  async resetPassword(
+    payload: ResetPasswordRequest
+  ): Promise<ResetPasswordResponse> {
+    const response = await api.post<ResetPasswordResponse>(
+      "/auth/password/reset",
+      payload
+    );
 
     return response.data;
   },
