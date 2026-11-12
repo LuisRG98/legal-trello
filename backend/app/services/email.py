@@ -1,4 +1,3 @@
-
 import logging
 
 import httpx
@@ -55,7 +54,18 @@ def send_email(
             timeout=15.0,
         )
 
+        if response.is_error:
+            logger.error(
+                "Resend API error | Status: %s | Response: %s",
+                response.status_code,
+                response.text,
+            )
+
         response.raise_for_status()
+
+        logger.info(
+            "Email successfully accepted by Resend."
+        )
 
     except httpx.HTTPError as exc:
         logger.exception(
