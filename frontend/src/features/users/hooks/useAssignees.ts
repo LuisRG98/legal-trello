@@ -1,8 +1,12 @@
+
 import { useQuery } from "@tanstack/react-query";
+
+import type { Assignee } from "../types/user.types";
 import { userService } from "../services/userService";
 
 export const assigneeKeys = {
   all: ["assignees"] as const,
+
   search: (term: string) =>
     [...assigneeKeys.all, term] as const,
 };
@@ -13,7 +17,7 @@ export function useAssignees(
 ) {
   const normalizedSearch = search.trim();
 
-  return useQuery({
+  return useQuery<Assignee[]>({
     queryKey: assigneeKeys.search(normalizedSearch),
 
     queryFn: () =>

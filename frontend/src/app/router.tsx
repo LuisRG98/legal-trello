@@ -21,6 +21,8 @@ import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
 import ChangeTemporaryPasswordPage from "../features/auth/pages/ChangeTemporaryPasswordPage";
 
+import UsersPage from "../features/users/pages/UsersPage";
+
 function RequireAuth() {
   const {
     isAuthenticated,
@@ -107,12 +109,7 @@ export default function AppRouter() {
             <Route element={<RequireRole allowedRoles={["ADMIN"]} />}>
               <Route
                 path="users"
-                element={
-                  <ModulePlaceholder
-                    title="User management"
-                    description="Manage platform users, roles and account status."
-                  />
-                }
+                element={<UsersPage />}
               />
 
               <Route

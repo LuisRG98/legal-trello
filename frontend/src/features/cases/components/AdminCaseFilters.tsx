@@ -228,7 +228,7 @@ export function AdminCaseFilters({
                       No users found.
                     </p>
                   ) : (
-                    assigneesQuery.data?.map((user) => (
+                    assigneesQuery.data?.map((user: Assignee) => (
                       <button
                         key={user.id}
                         type="button"

@@ -5,11 +5,16 @@ import type { CaseListItem } from "../types/case.types";
 import { useAssignees } from "../../users/hooks/useAssignees";
 import { useUpdateCaseAssignment } from "../hooks/useCases";
 
+import type {
+  Assignee,
+  UserRole,
+} from "../../users/types/user.types";
+
 interface CaseAssignmentSelectProps {
   caseItem: CaseListItem;
 }
 
-const roleLabels: Record<string, string> = {
+const roleLabels: Record<UserRole, string> = {
   SALES: "Sales",
   MANAGER: "Manager",
   ADMIN: "Admin",
@@ -86,7 +91,7 @@ export default function CaseAssignmentSelect({
                 No users found.
               </p>
             ) : (
-              assignees.map((assignee) => (
+              assignees.map((assignee: Assignee) => (
                 <button
                   key={assignee.id}
                   type="button"

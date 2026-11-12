@@ -8,6 +8,11 @@ import {
   X,
 } from "lucide-react";
 
+import type {
+  Assignee,
+  UserRole,
+} from "../../users/types/user.types";
+
 import type { CaseListItem } from "../types/case.types";
 import { useAssignees } from "../../users/hooks/useAssignees";
 import { useUpdateCaseAssignment } from "../hooks/useCases";
@@ -17,7 +22,7 @@ interface AssigneePickerProps {
   caseItem: CaseListItem;
 }
 
-const roleLabels = {
+const roleLabels: Record<UserRole, string> = {
   SALES: "Sales",
   MANAGER: "Manager",
   ADMIN: "Admin",
@@ -140,7 +145,7 @@ export function AssigneePicker({
               </p>
             ) : (
               <div className="space-y-1">
-                {assigneesQuery.data?.map((user) => {
+                {assigneesQuery.data?.map((user: Assignee) => {
                   const isSelected =
                     user.id === caseItem.assigned_to_id;
 
