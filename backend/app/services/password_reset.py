@@ -15,6 +15,7 @@ def generate_temporary_password() -> str:
     return secrets.token_urlsafe(24)
 
 
+
 def prepare_temporary_password(
     user: User,
     temporary_password: str,
@@ -38,7 +39,11 @@ def prepare_temporary_password(
     )
 
     user.password_changed_at = now
-    user.token_version += 1
+
+    # New SQLAlchemy objects may not have their Python defaults
+    # initialized until they are flushed or inserted.
+    user.token_version = (user.token_version or 0) + 1
+
 
 
 def send_temporary_password_email(

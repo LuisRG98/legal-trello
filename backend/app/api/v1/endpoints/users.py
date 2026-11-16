@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
 from app.core.roles import UserRole
-from app.core.security import hash_password
+from app.services.password_reset import prepare_temporary_password
 from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import (
@@ -153,6 +153,7 @@ def get_assignees(
     return db.scalars(statement).all()
 
 
+
 @router.post(
     "",
     response_model=UserRead,
@@ -173,9 +174,16 @@ def create_user(
         full_name=payload.full_name,
         email=email,
         nickname=nickname,
-        password_hash=hash_password(payload.password),
         role=payload.role.value,
         is_active=True,
+        token_version=0,
+    )
+
+    # The password provided by the administrator is temporary.
+    # The user must replace it on their first login.
+    prepare_temporary_password(
+        user=user,
+        temporary_password=payload.password,
     )
 
     try:
@@ -192,6 +200,7 @@ def create_user(
         ) from None
 
     return user
+
 
 
 @router.patch(
