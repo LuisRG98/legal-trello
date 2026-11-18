@@ -68,7 +68,7 @@ export default function CasesPage() {
     status_code: status || undefined,
     my_cases: myCasesOnly ? true : undefined,
 
-    ...(isAdmin && !myCasesOnly ? assignmentFilters : {}),
+    ...(isManagerOrAdmin && !myCasesOnly ? assignmentFilters : {}),
   };
 
   // --------------------------------------------------
@@ -177,8 +177,8 @@ export default function CasesPage() {
         </label>
       )}
 
-      {/* Administrative assignment filters */}
-      {isAdmin && !myCasesOnly && (
+      {/* Assignment filters for managers and admins */}
+      {isManagerOrAdmin && !myCasesOnly && (
         <AdminCaseFilters
           filters={assignmentFilters}
           onChange={handleAssignmentFiltersChange}

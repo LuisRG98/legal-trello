@@ -116,26 +116,20 @@ def list_cases(
             detail="My cases cannot be combined with other assignment filters.",
         )
 
-    # 2. Only ADMIN can use administrative assignment filters.
-    if not is_admin and (
+    # 2. Assignment filters are available to MANAGER and ADMIN.
+    if not is_manager_or_admin and (
         assigned_to_role is not None or unassigned_only
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to use these filters.",
+            detail="Only MANAGER and ADMIN can use assignment filters.",
         )
 
-    if assigned_to_id is not None and not is_admin:
-        if is_sales and assigned_to_id != current_user.id:
+    if assigned_to_id is not None and not is_manager_or_admin:
+        if not is_sales or assigned_to_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You cannot view cases assigned to another user.",
-            )
-
-        if not is_sales:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only ADMIN can filter cases by assigned user.",
+                detail="You can only view cases assigned to yourself.",
             )
 
     # 3. Reject contradictory filters.
@@ -178,8 +172,8 @@ def list_cases(
             Case.case_number.ilike(search_value)
         )
 
-    # Administrative assignment filters.
-    if is_admin:
+    # Assignment filters available to MANAGER and ADMIN.
+    if is_manager_or_admin:
         if assigned_to_id is not None:
             conditions.append(
                 Case.assigned_to_id == assigned_to_id
