@@ -51,6 +51,8 @@ export default function CasesPage() {
   const [assignmentFilters, setAssignmentFilters] =
     useState<CaseFiltersType>({});
 
+  const [myCasesOnly, setMyCasesOnly] = useState(false);
+
   const pageSize = 20;
 
   // --------------------------------------------------
@@ -64,8 +66,9 @@ export default function CasesPage() {
     case_number: caseNumber.trim() || undefined,
 
     status_code: status || undefined,
+    my_cases: myCasesOnly ? true : undefined,
 
-    ...(isAdmin ? assignmentFilters : {}),
+    ...(isAdmin && !myCasesOnly ? assignmentFilters : {}),
   };
 
   // --------------------------------------------------
@@ -107,7 +110,16 @@ export default function CasesPage() {
   function handleAssignmentFiltersChange(
     newFilters: CaseFiltersType,
   ) {
+    setMyCasesOnly(false);
     setAssignmentFilters(newFilters);
+    setPage(1);
+  }
+
+  function handleMyCasesChange(checked: boolean) {
+    setMyCasesOnly(checked);
+    if (checked) {
+      setAssignmentFilters({});
+    }
     setPage(1);
   }
 
@@ -148,8 +160,25 @@ export default function CasesPage() {
         onStatusChange={handleStatusFilterChange}
       />
 
+      {isManagerOrAdmin && (
+        <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={myCasesOnly}
+            onChange={(event) => handleMyCasesChange(event.target.checked)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+          <span>
+            <span className="block font-medium text-gray-900">My cases</span>
+            <span className="block text-xs text-gray-500">
+              Show only cases assigned to me.
+            </span>
+          </span>
+        </label>
+      )}
+
       {/* Administrative assignment filters */}
-      {isAdmin && (
+      {isAdmin && !myCasesOnly && (
         <AdminCaseFilters
           filters={assignmentFilters}
           onChange={handleAssignmentFiltersChange}

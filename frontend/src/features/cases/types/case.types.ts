@@ -68,6 +68,7 @@ export interface CaseFilters {
   assigned_to_id?: string;
   assigned_to_role?: UserRole;
   unassigned_only?: boolean;
+  my_cases?: boolean;
 }
 
 

@@ -72,6 +72,7 @@ def list_cases(
         pattern="^(SALES|MANAGER|ADMIN)$",
     ),
     unassigned_only: bool = Query(default=False),
+    my_cases: bool = Query(default=False),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CaseListResponse:
@@ -93,6 +94,27 @@ def list_cases(
 
     is_sales = role == UserRole.SALES.value
     is_admin = role == UserRole.ADMIN.value
+    is_manager_or_admin = role in {
+        UserRole.MANAGER.value,
+        UserRole.ADMIN.value,
+    }
+
+    # Managers and admins may narrow the list to cases assigned to themselves.
+    if my_cases and not is_manager_or_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only MANAGER and ADMIN can use the my-cases filter.",
+        )
+
+    if my_cases and (
+        assigned_to_id is not None
+        or assigned_to_role is not None
+        or unassigned_only
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="My cases cannot be combined with other assignment filters.",
+        )
 
     # 2. Only ADMIN can use administrative assignment filters.
     if not is_admin and (
@@ -132,8 +154,9 @@ def list_cases(
     # 4. Build one shared set of conditions.
     conditions = []
 
-    # Mandatory visibility restriction for SALES.
-    if is_sales:
+    # SALES always sees their own assigned cases. Managers and admins
+    # get the same restriction when the my-cases filter is selected.
+    if is_sales or my_cases:
         conditions.append(
             Case.assigned_to_id == current_user.id
         )
