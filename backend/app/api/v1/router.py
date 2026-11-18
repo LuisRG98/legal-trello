@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth,
     cases,
+    chat,
     comments,
     documents,
     users,
@@ -16,3 +17,4 @@ api_router.include_router(users.router)
 api_router.include_router(cases.router)
 api_router.include_router(documents.router)
 api_router.include_router(comments.router)
+api_router.include_router(chat.router)

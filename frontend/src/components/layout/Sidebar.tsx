@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderKanban,
+  MessageCircle,
   Users,
   ChartNoAxesCombined,
   BriefcaseBusiness,
@@ -36,6 +37,12 @@ const navigationItems: NavigationItem[] = [
     label: "Cases",
     path: "/cases",
     icon: FolderKanban,
+    allowedRoles: ["SALES", "MANAGER", "ADMIN"],
+  },
+  {
+    label: "Chat",
+    path: "/chat",
+    icon: MessageCircle,
     allowedRoles: ["SALES", "MANAGER", "ADMIN"],
   },
   {

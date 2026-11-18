@@ -1,40 +1,43 @@
-
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.db.database import SessionLocal
 from app.services.case_statuses import initialize_case_statuses
-
-from fastapi.middleware.cors import CORSMiddleware
+from app.services.chat import chat_message_cleanup_loop
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application startup and shutdown lifecycle.
-    """
-
-    # Initialize default case statuses
+    """Initialize application data and manage background cleanup."""
     db = SessionLocal()
-
     try:
         initialize_case_statuses(db)
     finally:
         db.close()
 
-    yield
+    cleanup_task = asyncio.create_task(chat_message_cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
     title="Case Management API",
     description=(
         "API para gestionar casos, documentos, "
-        "asignaciones y usuarios."
+        "asignaciones, usuarios y chat."
     ),
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -52,15 +55,9 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+
 def custom_openapi():
-    """
-    Customize OpenAPI schema to make Swagger UI
-    recognize uploaded files as binary files.
-
-    Compatibility workaround for FastAPI 0.129.1+
-    and Swagger UI array file upload rendering.
-    """
-
+    """Customize OpenAPI schema for Swagger UI file uploads."""
     if app.openapi_schema:
         return app.openapi_schema
 
@@ -70,8 +67,6 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-
-    # Use OpenAPI 3.0.3 for Swagger UI file picker compatibility.
     openapi_schema["openapi"] = "3.0.3"
 
     schemas = (
@@ -79,21 +74,14 @@ def custom_openapi():
         .get("components", {})
         .get("schemas", {})
     )
-
     for schema in schemas.values():
-
         properties = schema.get("properties", {})
-
         for prop in properties.values():
-
-            # Handle single file uploads.
             if prop.get("contentMediaType") == "application/octet-stream":
                 prop.pop("contentMediaType", None)
                 prop["format"] = "binary"
 
-            # Handle multiple file uploads.
             items = prop.get("items", {})
-
             if (
                 isinstance(items, dict)
                 and items.get("contentMediaType") == "application/octet-stream"
@@ -103,7 +91,6 @@ def custom_openapi():
                 items["format"] = "binary"
 
     app.openapi_schema = openapi_schema
-
     return app.openapi_schema
 
 
@@ -114,7 +101,7 @@ app.openapi = custom_openapi
 def root() -> dict[str, str]:
     return {
         "message": "Case Management API",
-        "version": "0.2.0",
+        "version": "0.3.0",
     }
 
 

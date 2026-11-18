@@ -16,6 +16,7 @@ import RequireRole from "./RequireRole";
 import ModulePlaceholder from "../components/shared/ModulePlaceholder";
 
 import CasesPage from "../features/cases/pages/CasesPage";
+import ChatPage from "../features/chat/pages/ChatPage";
 
 import ForgotPasswordPage from "../features/auth/pages/ForgotPasswordPage";
 import ResetPasswordPage from "../features/auth/pages/ResetPasswordPage";
@@ -105,6 +106,7 @@ export default function AppRouter() {
             <Route index element={<DashboardPage />} />
 
             <Route path="cases" element={<CasesPage />} />
+            <Route path="chat" element={<ChatPage />} />
 
             <Route element={<RequireRole allowedRoles={["ADMIN"]} />}>
               <Route
