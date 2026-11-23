@@ -26,7 +26,6 @@ export default function CasesPage() {
   // Permissions
   // --------------------------------------------------
 
-  const isAdmin = user?.role === "ADMIN";
 
   const isManagerOrAdmin =
     user?.role === "MANAGER" ||
