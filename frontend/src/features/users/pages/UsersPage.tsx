@@ -14,6 +14,7 @@ import {
   UserX,
   RefreshCw,
   X,
+  Pencil,
 } from "lucide-react";
 
 import {
@@ -23,6 +24,7 @@ import {
 } from "../services/userService";
 
 import type { UserRole } from "../types/user.types";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: "Administrator",
@@ -309,12 +311,140 @@ function CreateUserModal({
   );
 }
 
+function EditUserModal({
+  user,
+  onClose,
+  onSave,
+  isSaving,
+  error,
+}: {
+  user: ManagedUser;
+  onClose: () => void;
+  onSave: (payload: UpdateUserProfilePayload) => void;
+  isSaving: boolean;
+  error: string;
+}) {
+  const [form, setForm] = useState<UpdateUserProfilePayload>({
+    full_name: user.full_name,
+    email: user.email,
+    nickname: user.nickname,
+  });
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSave({
+      full_name: form.full_name.trim(),
+      email: form.email.trim().toLowerCase(),
+      nickname: form.nickname.trim(),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4">
+      <div className="my-auto w-full max-w-xl rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Edit user</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Update {user.full_name}'s name, email, and nickname.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSaving}
+            aria-label="Close modal"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 p-6">
+          <div>
+            <label htmlFor="edit-full-name" className="mb-2 block text-sm font-medium text-slate-700">
+              Full name
+            </label>
+            <input
+              id="edit-full-name"
+              type="text"
+              required
+              minLength={2}
+              maxLength={150}
+              value={form.full_name}
+              onChange={(event) => setForm((current) => ({ ...current, full_name: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-email" className="mb-2 block text-sm font-medium text-slate-700">
+              Email address
+            </label>
+            <input
+              id="edit-email"
+              type="email"
+              required
+              maxLength={255}
+              value={form.email}
+              onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="edit-nickname" className="mb-2 block text-sm font-medium text-slate-700">
+              Nickname
+            </label>
+            <input
+              id="edit-nickname"
+              type="text"
+              required
+              minLength={2}
+              maxLength={255}
+              value={form.nickname}
+              onChange={(event) => setForm((current) => ({ ...current, nickname: event.target.value }))}
+              className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          {error && (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSaving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [createError, setCreateError] = useState("");
   const [actionError, setActionError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -339,6 +469,30 @@ export default function UsersPage() {
     },
     onError: (error) => {
       setCreateError(getErrorMessage(error));
+    },
+  });
+
+  const profileMutation = useMutation({
+    mutationFn: ({
+      userId,
+      payload,
+    }: {
+      userId: string;
+      payload: UpdateUserProfilePayload;
+    }) => userService.updateProfile(userId, payload),
+
+    onSuccess: async () => {
+      setActionError("");
+      setSuccessMessage("User details updated successfully.");
+      setEditingUser(null);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["users"],
+      });
+    },
+
+    onError: (error) => {
+      setActionError(getErrorMessage(error));
     },
   });
 
@@ -414,6 +568,23 @@ export default function UsersPage() {
     setCreateError("");
     setSuccessMessage("");
     createMutation.mutate(payload);
+  };
+
+  const handleEditProfile = (user: ManagedUser) => {
+    setActionError("");
+    setSuccessMessage("");
+    setEditingUser(user);
+  };
+
+  const handleSaveProfile = (payload: UpdateUserProfilePayload) => {
+    if (!editingUser) return;
+
+    setActionError("");
+    setSuccessMessage("");
+    profileMutation.mutate({
+      userId: editingUser.id,
+      payload,
+    });
   };
 
   const handleRoleChange = (
@@ -634,12 +805,27 @@ export default function UsersPage() {
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50/70">
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">
-                          {user.full_name}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {user.email}
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">
+                              {user.full_name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {user.email}
+                            </p>
+                          </div>
+                          {user.id !== currentUser?.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditProfile(user)}
+                              aria-label={`Edit details for ${user.full_name}`}
+                              title="Edit user details"
+                              className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-5 py-4 text-sm text-slate-600">
@@ -720,7 +906,20 @@ export default function UsersPage() {
                       </p>
                     </div>
 
-                    <RoleBadge role={user.role} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      {user.id !== currentUser?.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleEditProfile(user)}
+                          aria-label={`Edit details for ${user.full_name}`}
+                          title="Edit user details"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      )}
+                      <RoleBadge role={user.role} />
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -768,6 +967,18 @@ export default function UsersPage() {
           Showing {filteredUsers.length} of {users.length} users
         </div>
       </div>
+
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => {
+            if (!profileMutation.isPending) setEditingUser(null);
+          }}
+          onSave={handleSaveProfile}
+          isSaving={profileMutation.isPending}
+          error={actionError}
+        />
+      )}
 
       {showCreateModal && (
         <CreateUserModal
