@@ -19,6 +19,12 @@ export interface CreateUserPayload {
   role: UserRole;
 }
 
+export interface UpdateUserProfilePayload {
+  full_name: string;
+  email: string;
+  nickname: string;
+}
+
 export interface UpdateUserRolePayload {
   role: UserRole;
 }
@@ -58,6 +64,19 @@ export const userService = {
   ): Promise<ManagedUser> {
     const response = await api.post<ManagedUser>(
       "/users",
+      payload,
+    );
+
+    return response.data;
+  },
+
+  // Actualiza el nombre, correo y nickname de un usuario.
+  async updateProfile(
+    userId: string,
+    payload: UpdateUserProfilePayload,
+  ): Promise<ManagedUser> {
+    const response = await api.patch<ManagedUser>(
+      `/users/${userId}/profile`,
       payload,
     );
 

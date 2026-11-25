@@ -13,6 +13,7 @@ from app.db.database import get_db
 from app.models.user import User
 from app.schemas.user import (
     UserCreate,
+    UserProfileUpdate,
     UserRead,
     UserRoleUpdate,
     UserStatusUpdate,
@@ -201,6 +202,54 @@ def create_user(
 
     return user
 
+
+
+@router.patch(
+    "/{user_id}/profile",
+    response_model=UserRead,
+)
+def update_user_profile(
+    user_id: UUID,
+    payload: UserProfileUpdate,
+    current_user: User = Depends(
+        require_roles(UserRole.ADMIN.value)
+    ),
+    db: Session = Depends(get_db),
+) -> User:
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You can only edit another user's profile",
+        )
+
+    user.full_name = " ".join(payload.full_name.split())
+    user.email = str(payload.email).strip().lower()
+    user.nickname = payload.nickname.strip()
+
+    try:
+        db.commit()
+        db.refresh(user)
+
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email or nickname already exists",
+        ) from None
+
+    except Exception:
+        db.rollback()
+        raise
+
+    return user
 
 
 @router.patch(
