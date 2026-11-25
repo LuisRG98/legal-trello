@@ -806,27 +806,12 @@ export default function UsersPage() {
                   {filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50/70">
                       <td className="px-5 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-medium text-slate-900">
-                              {user.full_name}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {user.email}
-                            </p>
-                          </div>
-                          {user.id !== currentUser?.id && (
-                            <button
-                              type="button"
-                              onClick={() => handleEditProfile(user)}
-                              aria-label={`Edit details for ${user.full_name}`}
-                              title="Edit user details"
-                              className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <Pencil size={16} />
-                            </button>
-                          )}
-                        </div>
+                        <p className="font-medium text-slate-900">
+                          {user.full_name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {user.email}
+                        </p>
                       </td>
 
                       <td className="px-5 py-4 text-sm text-slate-600">
@@ -872,10 +857,22 @@ export default function UsersPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <button
-                          type="button"
-                          disabled={statusMutation.isPending}
-                          onClick={() => handleStatusChange(user)}
+                        <div className="flex items-center gap-2">
+                          {user.id !== currentUser?.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditProfile(user)}
+                              aria-label={`Edit details for ${user.full_name}`}
+                              title="Edit user details"
+                              className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={statusMutation.isPending}
+                            onClick={() => handleStatusChange(user)}
                           className={`rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50 ${
                             user.is_active
                               ? "bg-red-50 text-red-700 hover:bg-red-100"
@@ -883,7 +880,8 @@ export default function UsersPage() {
                           }`}
                         >
                           {user.is_active ? "Deactivate" : "Activate"}
-                        </button>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -907,20 +905,7 @@ export default function UsersPage() {
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                      {user.id !== currentUser?.id && (
-                        <button
-                          type="button"
-                          onClick={() => handleEditProfile(user)}
-                          aria-label={`Edit details for ${user.full_name}`}
-                          title="Edit user details"
-                          className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                      )}
-                      <RoleBadge role={user.role} />
-                    </div>
+                    <RoleBadge role={user.role} />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -945,6 +930,17 @@ export default function UsersPage() {
                       <option value="ADMIN">Administrator</option>
                     </select>
 
+                    {user.id !== currentUser?.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleEditProfile(user)}
+                        aria-label={`Edit details for ${user.full_name}`}
+                        title="Edit user details"
+                        className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={statusMutation.isPending}
