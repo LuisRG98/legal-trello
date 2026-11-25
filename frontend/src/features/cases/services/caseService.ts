@@ -82,6 +82,19 @@ export const caseService = {
     return response.data;
   },
 
+  async deleteCase(caseId: string): Promise<void> {
+    await api.delete(`/cases/${caseId}`);
+  },
+
+  async deleteCases(caseIds: string[]): Promise<{ deleted_count: number }> {
+    const response = await api.post<{ deleted_count: number }>(
+      "/cases/bulk-delete",
+      { case_ids: caseIds },
+    );
+
+    return response.data;
+  },
+
   async updateAssignment(
     caseId: string,
     assignedToId: string | null,

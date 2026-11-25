@@ -9,6 +9,8 @@ DEFAULT_STATUSES = [
     {"code": "IN_PROGRESS", "name": "In Progress", "position": 2},
     {"code": "IN_REVIEW", "name": "In Review", "position": 3},
     {"code": "COMPLETED", "name": "Completed", "position": 4},
+    {"code": "DROP", "name": "Drop", "position": 5},
+    {"code": "HIT_AND_RUN", "name": "Hit & Run", "position": 6},
 ]
 
 

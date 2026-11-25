@@ -3,7 +3,9 @@ export type CaseStatus =
   | "PENDING"
   | "IN_PROGRESS"
   | "IN_REVIEW"
-  | "COMPLETED";
+  | "COMPLETED"
+  | "DROP"
+  | "HIT_AND_RUN";
 
 export interface CaseListItem {
   id: string;
