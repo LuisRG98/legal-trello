@@ -1,17 +1,25 @@
 
+import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import get_settings
 from app.core.roles import UserRole
 from app.models.case import Case
 from app.models.case_status import CaseStatus
+from app.models.case_document import CaseDocument
+from app.models.case_comment import CaseComment
+from app.models.case_comment_history import CaseCommentHistory
 from app.models.user import User
 
 from app.services.activity import record_case_activity
 from app.services.case_numbers import generate_case_number
+
+logger = logging.getLogger(__name__)
 
 
 # =========================================================
@@ -335,3 +343,92 @@ def assign_case(
     except Exception:
         db.rollback()
         raise
+
+
+# =========================================================
+# CASE DELETION
+# =========================================================
+
+
+def delete_cases(
+    db: Session,
+    case_ids: list[UUID],
+) -> int:
+    """
+    Delete cases and their related comments, activity, document records,
+    and stored PDF files. The API restricts this operation to ADMIN.
+    """
+
+    unique_case_ids = list(dict.fromkeys(case_ids))
+
+    if not unique_case_ids:
+        return 0
+
+    cases = list(
+        db.scalars(
+            select(Case).where(Case.id.in_(unique_case_ids))
+        ).all()
+    )
+
+    if len(cases) != len(unique_case_ids):
+        raise ValueError("One or more selected cases could not be found.")
+
+    document_keys = list(
+        db.scalars(
+            select(CaseDocument.storage_key).where(
+                CaseDocument.case_id.in_(unique_case_ids)
+            )
+        ).all()
+    )
+
+    comment_ids = select(CaseComment.id).where(
+        CaseComment.case_id.in_(unique_case_ids)
+    )
+
+    try:
+        # Comment history uses RESTRICT foreign keys, so remove it first.
+        db.execute(
+            delete(CaseCommentHistory).where(
+                CaseCommentHistory.comment_id.in_(comment_ids)
+            )
+        )
+        db.execute(
+            delete(CaseComment).where(
+                CaseComment.case_id.in_(unique_case_ids)
+            )
+        )
+
+        for case in cases:
+            db.delete(case)
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    storage_root = Path(get_settings().storage_path).resolve()
+
+    for storage_key in document_keys:
+        file_path = (storage_root / storage_key).resolve()
+
+        try:
+            file_path.relative_to(storage_root)
+        except ValueError:
+            logger.error(
+                "Skipping unsafe storage path while deleting case document: %s",
+                storage_key,
+            )
+            continue
+
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError:
+            # The database deletion is already committed; keep the API
+            # successful and report the orphaned file for operator cleanup.
+            logger.exception(
+                "Could not remove stored PDF after deleting a case: %s",
+                file_path,
+            )
+
+    return len(cases)

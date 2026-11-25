@@ -38,6 +38,8 @@ export default function CaseFilters({
         <option value="IN_PROGRESS">In Progress</option>
         <option value="IN_REVIEW">In Review</option>
         <option value="COMPLETED">Completed</option>
+        <option value="DROP">Drop</option>
+        <option value="HIT_AND_RUN">Hit &amp; Run</option>
       </select>
     </div>
   );

@@ -20,6 +20,8 @@ from app.models.case import Case
 from app.models.case_status import CaseStatus
 from app.models.user import User
 from app.schemas.case import (
+    CaseBulkDeleteRequest,
+    CaseDeleteResponse,
     CaseAssigneeRead,
     CaseAssignmentUpdate,
     CaseListItem,
@@ -28,6 +30,7 @@ from app.schemas.case import (
     CaseStatusUpdate,
 )
 from app.services.cases import (
+    delete_cases,
     assign_case,
     create_case,
     get_role_value,
@@ -255,6 +258,61 @@ def list_cases(
         page_size=page_size,
         pages=total_pages,
     )
+
+
+# =========================================================
+# DELETE CASES (ADMIN ONLY)
+# =========================================================
+
+
+@router.post(
+    "/bulk-delete",
+    response_model=CaseDeleteResponse,
+    dependencies=[
+        Depends(require_roles(UserRole.ADMIN.value))
+    ],
+)
+def delete_cases_endpoint(
+    payload: CaseBulkDeleteRequest,
+    db: Session = Depends(get_db),
+) -> CaseDeleteResponse:
+    try:
+        deleted_count = delete_cases(
+            db=db,
+            case_ids=payload.case_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return CaseDeleteResponse(deleted_count=deleted_count)
+
+
+@router.delete(
+    "/{case_id}",
+    response_model=CaseDeleteResponse,
+    dependencies=[
+        Depends(require_roles(UserRole.ADMIN.value))
+    ],
+)
+def delete_case_endpoint(
+    case_id: UUID,
+    db: Session = Depends(get_db),
+) -> CaseDeleteResponse:
+    try:
+        deleted_count = delete_cases(
+            db=db,
+            case_ids=[case_id],
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return CaseDeleteResponse(deleted_count=deleted_count)
 
 
 # =========================================================

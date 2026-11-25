@@ -25,6 +25,16 @@ DEFAULT_STATUSES = [
         "name": "Completed",
         "position": 4,
     },
+    {
+        "code": "DROP",
+        "name": "Drop",
+        "position": 5,
+    },
+    {
+        "code": "HIT_AND_RUN",
+        "name": "Hit & Run",
+        "position": 6,
+    },
 ]
 
 

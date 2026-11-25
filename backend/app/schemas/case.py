@@ -11,6 +11,14 @@ class CaseCreate(BaseModel):
     pass
 
 
+class CaseBulkDeleteRequest(BaseModel):
+    case_ids: list[UUID] = Field(min_length=1, max_length=100)
+
+
+class CaseDeleteResponse(BaseModel):
+    deleted_count: int
+
+
 class CaseStatusUpdate(BaseModel):
     status_code: str = Field(
         min_length=1,
