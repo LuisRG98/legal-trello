@@ -21,6 +21,7 @@ import {
   userService,
   type ManagedUser,
   type CreateUserPayload,
+  type UpdateUserProfilePayload,
 } from "../services/userService";
 
 import type { UserRole } from "../types/user.types";
